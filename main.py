@@ -39,7 +39,7 @@ def msg_sensor(client, userdata, msg):
             umidade = mqtt_dados.get('humidity')
             co2 = mqtt_dados.get('co2')
             poeira = 0
-            tempo_registro = mqtt_dados.get('timestamps')
+            tempo_registro = mqtt_dados.get('timestamp')
 
             if tempo_registro is None:
                 print("Timestamp não encontrado")
@@ -65,6 +65,7 @@ def msg_sensor(client, userdata, msg):
 
             mybd.session.add(novos_dados)
             mybd.session.commit()
+            print("Dados foram inseridos com sucesso no banco!")
 
         except Exception as e:
             print(f"Erro ao processar os dados do MQTT: {str(e)}")
@@ -81,12 +82,12 @@ def start_mqtt():
 class Registro(mybd.Model):
     __tablename__ = 'tb_registro'
     id = mybd.Column(mybd.Integer, primary_key=True, autoincrement=True)
-    temperatura = mybd.Column(mybd.Float)
-    pressao = mybd.Column(mybd.Float)
-    altitude = mybd.Column(mybd.Float)
-    umidade = mybd.Column(mybd.Float)
-    co2 = mybd.Column(mybd.Float)
-    poeira = mybd.Column(mybd.Float)
+    temperatura = mybd.Column(mybd.NUMERIC(10,2))
+    pressao = mybd.Column(mybd.NUMERIC(10,2))
+    altitude = mybd.Column(mybd.NUMERIC(10,2))
+    umidade = mybd.Column(mybd.NUMERIC(10,2))
+    co2 = mybd.Column(mybd.NUMERIC(10,2))
+    poeira = mybd.Column(mybd.NUMERIC(10,2))
     tempo_registro = mybd.Column(mybd.DateTime)
 
 # -------------------------------------------------
