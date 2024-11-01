@@ -204,7 +204,7 @@ def Home():
 
 #GRAFICOS
 def graficos():
-    aba1, aba2 = st.tabs(["Gráfico de Linha", "Gráfico de queimadas"])
+    aba1, aba2, aba3 = st.tabs(["Gráfico de Linha", "Gráfico de queimadas", "Comparação queimadas x Sensores"])
     #aba1 = st.tabs(["Gráfico de Linha"])
 
     with aba1:
@@ -235,14 +235,6 @@ def graficos():
         st.plotly_chart(fig_valores, use_container_width=True)
     
     with aba2:
-        if df_selecionado.empty:
-            st.write("Nenhum dado está disponível para gerar o gráfico")
-            return
-            
-        if ColunaX == ColunaY:
-            st.warning("Selecione uma opção diferente para os eixos X e Y")
-            return
-            
         try:
             grupo_dados = df_queimadas_sp.groupby(by=["date"])['focuses'].sum().reset_index(name="total_focos")
 
@@ -262,6 +254,9 @@ def graficos():
             st.error(f"Erro ao criar o gráfico de linha: {e}")
 
         st.plotly_chart(fig_valores1, use_container_width=True)
+    
+    #with aba3:
+        
 
 
 Home()

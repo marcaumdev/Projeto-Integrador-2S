@@ -4,6 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 import json
 import paho.mqtt.client as mqtt
 
+from gemini import gera_prompt
+from gmail import enviar_email
+
 #Conexão com banco de dados
 
 #nome da aplicação
@@ -65,6 +68,9 @@ def msg_sensor(client, userdata, msg):
 
             mybd.session.add(novos_dados)
             mybd.session.commit()
+            body = gera_prompt(temperatura, umidade, altitude, pressao, co2)
+            enviar_email("Alerta de agora", "renata.gomesdeandrade26@gmail.com", body)
+
             print("Dados foram inseridos com sucesso no banco!")
 
         except Exception as e:
