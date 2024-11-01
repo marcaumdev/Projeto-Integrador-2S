@@ -68,8 +68,10 @@ def msg_sensor(client, userdata, msg):
 
             mybd.session.add(novos_dados)
             mybd.session.commit()
-            body = gera_prompt(temperatura, umidade, altitude, pressao, co2)
-            enviar_email("Alerta de agora", "renata.gomesdeandrade26@gmail.com", body)
+            
+            if umidade < 60:
+                body = gera_prompt(temperatura, umidade, altitude, pressao, co2)
+                enviar_email("Alerta de agora", "renata.gomesdeandrade26@gmail.com", body)
 
             print("Dados foram inseridos com sucesso no banco!")
 
