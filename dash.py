@@ -12,6 +12,11 @@ query = "SELECT * FROM tb_registro"
 df = conexao(query)
 df_queimadas_sp = pd.read_csv('queimadas_sp.csv')
 
+# Carregar o arquivo Excel e especificar as abas
+file_path = "producao.xlsx"  # substitua pelo caminho do seu arquivo Excel
+df_toneladas = pd.read_excel(file_path, sheet_name="Total")
+df_produtos = pd.read_excel(file_path, sheet_name="Produto") 
+
 # Botão para atualização dos dados
 if st.button("Atualizar Dados"):
     df = conexao(query)
@@ -204,9 +209,7 @@ def Home():
 
 #GRAFICOS
 def graficos():
-    aba1, aba2, aba3 = st.tabs(["Gráfico de Linha", "Gráfico de queimadas", "Comparação queimadas x Sensores"])
-    #aba1 = st.tabs(["Gráfico de Linha"])
-
+    aba1, aba2, aba3, aba4, aba5 = st.tabs(["Gráfico de Dispersão (Sensores)", "Gráfico das queimadas", "Comparação Queimadas x Sensores", "Produção Geral Em São Paulo", "Produção Por Produto"])
     with aba1:
         if df_selecionado.empty:
             st.write("Nenhum dado está disponível para gerar o gráfico")
@@ -217,22 +220,20 @@ def graficos():
             return
             
         try:
-            grupo_dados1 = df_selecionado.groupby(by=[ColunaX]).size().reset_index(name="contagem")
-
-            fig_valores = px.bar(
-                grupo_dados1,
+            fig_valores = px.scatter(
+                df_selecionado,
                 x=ColunaX,
-                y="contagem",
-                orientation="h",
-                title=f"Contagem de registros por {ColunaX.capitalize()}",
-                color_discrete_sequence=["#0083b8"],
-                template="plotly_white"
+                y=ColunaY,
+                title=f"Relação entre {ColunaX.capitalize()} e {ColunaY.capitalize()}",
+                color_discrete_sequence=["#de171a"],
+                template="plotly_white",
+                #trendline="ols"  # Opcional: adiciona uma linha de tendência (regressão linear)
             )
 
         except Exception as e:
             st.error(f"Erro ao criar o gráfico de linha: {e}")
 
-        st.plotly_chart(fig_valores, use_container_width=True)
+        st.plotly_chart(fig_valores)
     
     with aba2:
         try:
@@ -246,7 +247,7 @@ def graficos():
                 orientation="h",
                 labels={"total_focos": "Total de Focos", "date": "Data"},
                 title="Quantidade de focos de queimado por data em São Paulo",
-                color_discrete_sequence=["#0083b8"],
+                color_discrete_sequence=["#de171a"],
                 template="plotly_white"
             )
 
@@ -255,8 +256,75 @@ def graficos():
 
         st.plotly_chart(fig_valores1, use_container_width=True)
     
-    #with aba3:
+    with aba3:
         
+        if ColunaX == ColunaY:
+            st.warning("Selecione uma opção diferente para os eixos X e Y")
+            return
+
+        # Converter a coluna 'tempo_registro' para 'YYYY-MM'
+        df_selecionado['tempo_registro'] = df_selecionado['tempo_registro'].dt.to_period('M')
+
+        # Converter a coluna 'date' de queimadas para 'YYYY-MM' (ano/mês)
+        df_queimadas_sp['date'] = pd.to_datetime(df_queimadas_sp['date'], format='%Y/%m')
+        df_queimadas_sp['date'] = df_queimadas_sp['date'].dt.to_period('M')
+        
+        # Verifica se as colunas selecionadas estão presentes nas bases
+        if ColunaX in df_selecionado.columns and ColunaY in df_selecionado.columns and 'date' in df_queimadas_sp.columns:
+            try:
+                # Faz a junção das bases de dados usando 'tempo_registro' no lugar de 'date' para a tabela de sensores
+                df_combinado = df_selecionado.merge(df_queimadas_sp[['date', 'focuses']], how='inner', left_on='tempo_registro', right_on='date')
+
+                # Criação do gráfico relacionando as variáveis selecionadas com os focos de queimadas
+                fig_valores2 = px.scatter(
+                    df_combinado,
+                    x=ColunaX,
+                    y=ColunaY,
+                    size="focuses",  # Tamanho das bolhas representa os focos de queimadas
+                    color="focuses",  # Cor representa a quantidade de queimadas
+                    labels={ColunaX: ColunaX.capitalize(), ColunaY: ColunaY.capitalize(), "focuses": "Focos de Queimadas"},
+                    title=f"Relação entre {ColunaX.capitalize()}, {ColunaY.capitalize()} e Focos de Queimadas",
+                    template="plotly_white",
+                    color_continuous_scale=px.colors.sequential.OrRd
+                )
+
+            except Exception as e:
+                st.error(f"Erro ao criar o gráfico: {e}")
+
+            st.plotly_chart(fig_valores2, use_container_width=True)
+        else:
+            st.warning("Não foi possível relacionar as bases. Verifique as colunas de data.")
+    
+    with aba4:
+        # Criando o gráfico de linha
+        fig = px.line(
+            df_toneladas.iloc[::-1].reset_index(drop=True), 
+            x='Data', 
+            y='Toneladas', 
+            title='Toneladas Por Mês',
+            labels={'Data': 'Mês/Ano', 'Toneladas': 'Quantidade (Toneladas)'})
+
+        # Exibindo o gráfico no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with aba5:
+        # Converter a coluna 'Data' para datetime (no formato ano/mês)
+        df_produtos['Data'] = pd.to_datetime(df_produtos['Data'], format='%Y/%m')
+        # Ordenar os dados pela Data para que os meses apareçam na ordem correta no gráfico
+        df_produtos.sort_values(by='Data', inplace=True)
+
+        # Criar o gráfico de barras com barras empilhadas ou agrupadas
+        fig = px.bar(
+            df_produtos, 
+            x='Data', 
+            y='Toneladas', 
+            color='Produtos Agrícolas',  # Cada produto terá uma cor diferente
+            title='Evolução Mensal das Toneladas por Produto Agrícola',
+            labels={'Toneladas': 'Quantidade (Toneladas)', 'Data': 'Mês/Ano'}
+        )
+
+        # Exibir o gráfico no Streamlit
+        st.plotly_chart(fig, use_container_width=True)
 
 
 Home()

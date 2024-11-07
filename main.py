@@ -69,9 +69,80 @@ def msg_sensor(client, userdata, msg):
             mybd.session.add(novos_dados)
             mybd.session.commit()
             
-            if umidade < 60:
-                body = gera_prompt(temperatura, umidade, altitude, pressao, co2)
-                enviar_email("Alerta de agora", "renata.gomesdeandrade26@gmail.com", body)
+            if (umidade < 45 or temperatura > 40 or temperatura < 15):
+                esqueleto = """<!DOCTYPE html>
+                                <html>
+                                <head>
+                                <style>
+                                body {
+                                background-color: #f2f2f2;
+                                font-family: Arial, sans-serif;
+                                }
+
+                                .container {
+                                background-color: #fff;
+                                border-radius: 10px;
+                                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                                padding: 20px;
+                                margin: 20px auto;
+                                max-width: 600px;
+                                }
+
+                                .header {
+                                background-color: #ff7f50; /* Laranja vibrante */
+                                color: #fff;
+                                padding: 10px;
+                                border-radius: 5px 5px 0 0;
+                                }
+
+                                .content {
+                                padding: 20px;
+                                }
+
+                                .data {
+                                font-size: 18px;
+                                font-weight: bold;
+                                margin-bottom: 10px;
+                                }
+
+                                .data span {
+                                color: #ff8c00; /* Laranja mais escuro */
+                                }
+
+                                .warning {
+                                background-color: #ffcccb; /* Rosa claro */
+                                border: 1px solid #ff7f50; /* Borda laranja */
+                                padding: 10px;
+                                margin: 20px 0;
+                                border-radius: 5px;
+                                }
+                                </style>
+                                </head>
+                                <body>
+                                <div class="container">
+                                <div class="header">
+                                    <h2>Alerta de Danos à Plantação</h2>
+                                </div>
+                                <div class="content">
+                                    <p>
+                                    Esta é uma mensagem de alerta sobre possíveis danos à sua plantação!
+                                    </p>
+                                    <div class="data">
+                                    <span>Umidade:</span> 79%
+                                    </div>
+                                    <div class="data">
+                                    <span>Temperatura:</span> 24.48°C
+                                    </div>
+                                    <div class="warning">
+                                    As condições atuais podem causar danos à sua plantação! Monitoramento constante é necessário.
+                                    </div>
+                                </div>
+                                </div>
+                                </body>
+                                </html>"""
+                body = gera_prompt(esqueleto, temperatura, umidade, co2)
+                enviar_email("Alerta de agora", "mvinicius.oliveira04@gmail.com", body)
+                print("Email enviado!")
 
             print("Dados foram inseridos com sucesso no banco!")
 
