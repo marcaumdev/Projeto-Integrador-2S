@@ -1,8 +1,8 @@
 import numpy as np
 import streamlit as st
 import pandas as pd
-import pydeck as pdk
 import plotly.express as px
+import plotly.graph_objects as go
 from query import *
 
 # Consulta o banco de dados
@@ -209,7 +209,7 @@ def Home():
 
 #GRAFICOS
 def graficos():
-    aba1, aba2, aba3, aba4, aba5 = st.tabs(["Gráfico de Dispersão (Sensores)", "Gráfico das queimadas", "Comparação Queimadas x Sensores", "Produção Geral Em São Paulo", "Produção Por Produto"])
+    aba1, aba2, aba3, aba4, aba5, aba6 = st.tabs(["Gráfico de Dispersão (Sensores)", "Gráfico das queimadas", "Comparação Queimadas x Sensores", "Produção Geral Em São Paulo", "Produção Por Produto", "Relação produção x Focos de queimada"])
     with aba1:
         if df_selecionado.empty:
             st.write("Nenhum dado está disponível para gerar o gráfico")
@@ -325,6 +325,81 @@ def graficos():
 
         # Exibir o gráfico no Streamlit
         st.plotly_chart(fig, use_container_width=True)
+
+    with aba6:
+        try:
+            # Processar os dados do gráfico 1
+            grupo_dados = df_queimadas_sp.groupby(by=["date"])['focuses'].sum().reset_index(name="total_focos")
+
+            # Processar os dados do gráfico 2
+            df_toneladas2 = df_toneladas.iloc[::-1].reset_index(drop=True)
+            df_toneladas2 = df_toneladas2.rename(columns={'Data': 'date', 'Toneladas': 'toneladas'})
+
+            if pd.api.types.is_period_dtype(grupo_dados['date']):
+                grupo_dados['date'] = grupo_dados['date'].dt.to_timestamp()
+
+            if pd.api.types.is_period_dtype(df_toneladas2['date']):
+                df_toneladas2['date'] = df_toneladas2['date'].dt.to_timestamp()
+
+            # Converter as colunas 'date' para o tipo datetime
+            grupo_dados['date'] = pd.to_datetime(grupo_dados['date'], format='%Y/%m')
+            df_toneladas2['date'] = pd.to_datetime(df_toneladas2['date'], format='%Y/%m')
+
+            # Mesclar os dados com base na coluna 'date'
+            dados_cruzados = pd.merge(grupo_dados, df_toneladas2, on="date", how="inner")
+
+            # Se não houver dados após o merge, mostrar um aviso
+            if dados_cruzados.shape[0] == 0:
+                st.warning("Não há dados para as datas selecionadas nos dois conjuntos.")
+
+            # Criar o gráfico cruzado com Plotly Graph Objects
+            if dados_cruzados.shape[0] > 0:
+                fig = go.Figure()
+
+                # Adicionar a linha para os focos de queimadas
+                fig.add_trace(go.Scatter(
+                    x=dados_cruzados['date'],
+                    y=dados_cruzados['total_focos'],
+                    name='Focos de Queimada',
+                    mode='lines+markers',
+                    marker=dict(color='red'),
+                    yaxis='y1'
+                ))
+
+                # Adicionar a linha para as toneladas
+                fig.add_trace(go.Scatter(
+                    x=dados_cruzados['date'],
+                    y=dados_cruzados['toneladas'],
+                    name='Toneladas Produzidas',
+                    mode='lines+markers',
+                    marker=dict(color='blue'),
+                    yaxis='y2'
+                ))
+
+                # Configurar os eixos y
+                fig.update_layout(
+                    title="Comparação de Focos de Queimada e Toneladas Produzidas",
+                    xaxis=dict(title='Data'),
+                    yaxis=dict(
+                        title='Total de Focos de Queimada',
+                        side='left',
+                        range=[0, dados_cruzados['total_focos'].max() * 1.1]  # Ajuste do intervalo do eixo Y1
+                    ),
+                    yaxis2=dict(
+                        title='Toneladas Produzidas',
+                        side='right',
+                        overlaying='y',  # Coloca o eixo y2 sobre o eixo y1
+                        range=[0, dados_cruzados['toneladas'].max() * 1.1]  # Ajuste do intervalo do eixo Y2
+                    ),
+                    template="plotly_white"
+                )
+
+                st.plotly_chart(fig, use_container_width=True)
+
+        except FileNotFoundError as e:
+            st.error(f"Erro ao carregar os arquivos: {e}")
+        except Exception as e:
+            st.error(f"Ocorreu um erro: {e}")
 
 
 Home()
