@@ -272,8 +272,11 @@ def graficos():
         # Verifica se as colunas selecionadas estão presentes nas bases
         if ColunaX in df_selecionado.columns and ColunaY in df_selecionado.columns and 'date' in df_queimadas_sp.columns:
             try:
+
+                df_sensor_meses = df_selecionado.groupby(df_selecionado['date'])
+
                 # Faz a junção das bases de dados usando 'tempo_registro' no lugar de 'date' para a tabela de sensores
-                df_combinado = df_selecionado.merge(df_queimadas_sp[['date', 'focuses']], how='inner', left_on='tempo_registro', right_on='date')
+                df_combinado = df_sensor_meses.merge(df_queimadas_sp[['date', 'focuses']], how='inner', left_on='tempo_registro', right_on='date')
 
                 # Criação do gráfico relacionando as variáveis selecionadas com os focos de queimadas
                 fig_valores2 = px.scatter(
