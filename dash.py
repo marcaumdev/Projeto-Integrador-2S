@@ -1,261 +1,150 @@
-import numpy as np
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from query import *
+from query import conexao  # Certifique-se de que o arquivo query.py e a função conexao existem
 
-# Consulta o banco de dados
+# Configuração da página
+st.set_page_config(
+    page_title="Dashboard Interativo",
+    page_icon="📊",
+    layout="wide"
+)
+
+#with open("styles.css") as f:
+#    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+# Consulta ao banco de dados
 query = "SELECT * FROM tb_registro"
 
-# Carregar os dados do MySQL
+# Carregar os dados do banco e arquivos locais
 df = conexao(query)
 df_queimadas_sp = pd.read_csv('queimadas_sp.csv')
 
-# Carregar o arquivo Excel e especificar as abas
-file_path = "producao.xlsx"  # substitua pelo caminho do seu arquivo Excel
+file_path = "producao.xlsx"  # Substitua pelo caminho correto do arquivo Excel
 df_toneladas = pd.read_excel(file_path, sheet_name="Total")
-df_produtos = pd.read_excel(file_path, sheet_name="Produto") 
+df_produtos = pd.read_excel(file_path, sheet_name="Produto")
 
-# Botão para atualização dos dados
+# Botão para atualizar os dados
 if st.button("Atualizar Dados"):
     df = conexao(query)
 
 # Menu lateral
-st.sidebar.header("Selecione a informação para gerar o gráfico")
-
-# Seleção de colunas X
-# Selectbox -> cria uma caixa de seleção na barra lateral
+st.sidebar.header("Configurações do Gráfico")
 ColunaX = st.sidebar.selectbox(
-    "Eixo X",
+    "Eixo Horizontal",
     options=["umidade", "temperatura", "pressao", "altitude", "co2", "poeira"],
     index=0
 )
-
 ColunaY = st.sidebar.selectbox(
-    "Eixo Y",
+    "Eixo Vertical",
     options=["umidade", "temperatura", "pressao", "altitude", "co2", "poeira"],
     index=1
 )
 
-# Verificar quais os atributos do filtro
-def filtros(atributo):
-    return atributo in [ColunaX, ColunaY]
+# Filtro dinâmico para cada variável
+def adicionar_filtro(nome_coluna, label, step=0.1):
+    if nome_coluna in [ColunaX, ColunaY]:
+        min_val = float(df[nome_coluna].min())
+        max_val = float(df[nome_coluna].max())
+        return st.sidebar.slider(
+            label,
+            min_value=min_val,
+            max_value=max_val,
+            value=(min_val, max_val),
+            step=step
+        )
+    return None
 
-# Filtro de Range -> Slider
-st.sidebar.header("Selecione o Filtro")
+umidade_range = adicionar_filtro("umidade", "Umidade (%)")
+temperatura_range = adicionar_filtro("temperatura", "Temperatura (°C)")
+pressao_range = adicionar_filtro("pressao", "Pressão")
+altitude_range = adicionar_filtro("altitude", "Altitude")
+co2_range = adicionar_filtro("co2", "CO2 (ppm)")
+poeira_range = adicionar_filtro("poeira", "Poeira")
 
-# UMIDADE
-if filtros("umidade"):
-    umidade_range = st.sidebar.slider(
-        # Titulo
-        "umidade (%)",
-        # Valor mínimo
-        min_value=float(df["umidade"].min()),
-        # Valor máximo
-        max_value=float(df["umidade"].max()),
-        # Faixa de valores selecionados
-        value=(float(df["umidade"].min()), float(df["umidade"].max())),
-        # Incremento para cada movimento do slider
-        step=0.1,
-    )
-
-# TEMPERATURA
-if filtros("temperatura"):
-    temperatura_range = st.sidebar.slider(
-        # Titulo
-        "Temperatura (°C)",
-        # Valor mínimo
-        min_value=float(df["temperatura"].min()),
-        # Valor máximo
-        max_value=float(df["temperatura"].max()),
-        # Faixa de valores selecionados
-        value=(float(df["temperatura"].min()), float(df["temperatura"].max())),
-        # Incremento para cada movimento do slider
-        step=0.1,
-    )
-
-# PRESSÃO
-if filtros("pressao"):
-    pressao_range = st.sidebar.slider(
-        # Titulo
-        "pressao",
-        # Valor mínimo
-        min_value=float(df["pressao"].min()),
-        # Valor máximo
-        max_value=float(df["pressao"].max()),
-        # Faixa de valores selecionados
-        value=(float(df["pressao"].min()), float(df["pressao"].max())),
-        # Incremento para cada movimento do slider
-        step=0.1,
-    )
-
-# ALTITUDE
-if filtros("altitude"):
-    altitude_range = st.sidebar.slider(
-        # Titulo
-        "altitude",
-        # Valor mínimo
-        min_value=float(df["altitude"].min()),
-        # Valor máximo
-        max_value=float(df["altitude"].max()),
-        # Faixa de valores selecionados
-        value=(float(df["altitude"].min()), float(df["altitude"].max())),
-        # Incremento para cada movimento do slider
-        step=0.1,
-    )
-
-# CO2
-if filtros("co2"):
-    co2_range = st.sidebar.slider(
-        # Titulo
-        "co2 (ppm)",
-        # Valor mínimo
-        min_value=float(df["co2"].min()),
-        # Valor máximo
-        max_value=float(df["co2"].max()),
-        # Faixa de valores selecionados
-        value=(float(df["co2"].min()), float(df["co2"].max())),
-        # Incremento para cada movimento do slider
-        step=0.1,
-    )
-
-# Poeira
-if filtros("poeira"):
-    poeira_range = st.sidebar.slider(
-        # Titulo
-        "poeira",
-        # Valor mínimo
-        min_value=float(df["poeira"].min()),
-        # Valor máximo
-        max_value=float(df["poeira"].max()),
-        # Faixa de valores selecionados
-        value=(float(df["poeira"].min()), float(df["poeira"].max())),
-        # Incremento para cada movimento do slider
-        step=0.1,
-    )
-
+# Aplicar os filtros ao DataFrame
 df_selecionado = df.copy()
 
-if filtros("umidade"):
-    df_selecionado = df_selecionado[
-        (df_selecionado["umidade"] >= umidade_range[0]) &
-        (df_selecionado["umidade"] <= umidade_range[1])
-    ]
+def aplicar_filtro(df, coluna, valores_range):
+    if valores_range:
+        df = df[(df[coluna] >= valores_range[0]) & (df[coluna] <= valores_range[1])]
+    return df
 
-if filtros("temperatura"):
-    df_selecionado = df_selecionado[
-        (df_selecionado["temperatura"] >= temperatura_range[0]) &
-        (df_selecionado["temperatura"] <= temperatura_range[1])
-    ]
+df_selecionado = aplicar_filtro(df_selecionado, "umidade", umidade_range)
+df_selecionado = aplicar_filtro(df_selecionado, "temperatura", temperatura_range)
+df_selecionado = aplicar_filtro(df_selecionado, "pressao", pressao_range)
+df_selecionado = aplicar_filtro(df_selecionado, "altitude", altitude_range)
+df_selecionado = aplicar_filtro(df_selecionado, "co2", co2_range)
+df_selecionado = aplicar_filtro(df_selecionado, "poeira", poeira_range)
 
-if filtros("pressao"):
-    df_selecionado = df_selecionado[
-        (df_selecionado["pressao"] >= pressao_range[0]) &
-        (df_selecionado["pressao"] <= pressao_range[1])
-    ]
-
-if filtros("altitude"):
-    df_selecionado = df_selecionado[
-        (df_selecionado["altitude"] >= altitude_range[0]) &
-        (df_selecionado["altitude"] <= altitude_range[1])
-    ]
-
-if filtros("co2"):
-    df_selecionado = df_selecionado[
-        (df_selecionado["co2"] >= co2_range[0]) &
-        (df_selecionado["co2"] <= co2_range[1])
-    ]
-    
-if filtros("poeira"):
-    df_selecionado = df_selecionado[
-        (df_selecionado["poeira"] >= poeira_range[0]) &
-        (df_selecionado["poeira"] <= poeira_range[1])
-    ]
-
-# GRAFICOS
+# Função de visualização principal
 def Home():
-    with st.expander("Tabela"):
-        mostrarDados = st.multiselect(
-            "Filtro",
+    st.title("Dashboard de Sensores e Produção Agrícola(SP)")
+    with st.expander("Visualizar Dados"):
+        colunas = st.multiselect(
+            "Selecione colunas para visualizar",
             df_selecionado.columns,
-            default=[],
-            key="showData_home"
+            default=[]
         )
+        if colunas:
+            st.dataframe(df_selecionado[colunas])
 
-        if mostrarDados:
-            st.write(df_selecionado[mostrarDados])
-
+    # Métricas
     if not df_selecionado.empty:
-        media_umidade = df_selecionado["umidade"].mean()    
-        media_temperatura = df_selecionado["temperatura"].mean()    
-        media_co2 = df_selecionado["co2"].mean()    
+        media_umidade = df_selecionado["umidade"].mean()
+        media_temperatura = df_selecionado["temperatura"].mean()
+        media_co2 = df_selecionado["co2"].mean()
 
-        media1, media2, media3 = st.columns(3, gap="large")
-
-        with media1:
-            st.info("Média de Registros de Umidade", icon='📌')
-            st.metric(label="Média", value=f"{media_umidade:.2f}")
-
-        with media2:
-            st.info("Média de Registros de Temperatura", icon='📌')
-            st.metric(label="Média", value=f"{media_temperatura:.2f}")
-
-        with media3:
-            st.info("Média de Registros de CO2", icon='📌')
-            st.metric(label="Média", value=f"{media_co2:.2f}")
         
-        st.markdown("""---------""")
 
-#GRAFICOS
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Média de Umidade", f"{media_umidade:.2f}")
+        col2.metric("Média de Temperatura", f"{media_temperatura:.2f}")
+        if pd.isna(media_co2):
+            col3.metric("Média de CO2", f"Dado não disponível")
+        else:
+            col3.metric("Média de CO2", f"{media_co2:.2f}")
+
+# Função de gráficos
 def graficos():
-    aba1, aba2, aba3, aba4, aba5, aba6 = st.tabs(["Gráfico de Dispersão (Sensores)", "Gráfico das queimadas", "Comparação Queimadas x Sensores", "Produção Geral Em São Paulo", "Produção Por Produto", "Relação produção x Focos de queimada"])
+    st.header("Gráficos Interativos")
+    aba1, aba2, aba3, aba4, aba5, aba6 = st.tabs([
+        "Dispersão (Sensores)", "Queimadas", "Queimadas x Sensores",
+        "Produção Geral", "Produção por Produto", "Produção x Queimadas"
+    ])
+    
+    # Gráfico de dispersão
     with aba1:
-        if df_selecionado.empty:
-            st.write("Nenhum dado está disponível para gerar o gráfico")
-            return
-            
         if ColunaX == ColunaY:
-            st.warning("Selecione uma opção diferente para os eixos X e Y")
-            return
-            
-        try:
-            fig_valores = px.scatter(
+            st.warning("Selecione eixos diferentes para X e Y")
+        else:
+            fig = px.scatter(
                 df_selecionado,
                 x=ColunaX,
                 y=ColunaY,
+                color_discrete_sequence=["#197917"],
                 title=f"Relação entre {ColunaX.capitalize()} e {ColunaY.capitalize()}",
-                color_discrete_sequence=["#de171a"],
-                template="plotly_white",
-                #trendline="ols"  # Opcional: adiciona uma linha de tendência (regressão linear)
-            )
-
-        except Exception as e:
-            st.error(f"Erro ao criar o gráfico de linha: {e}")
-
-        st.plotly_chart(fig_valores)
-    
-    with aba2:
-        try:
-            grupo_dados = df_queimadas_sp.groupby(by=["date"])['focuses'].sum().reset_index(name="total_focos")
-
-            # Criando o gráfico de barras horizontal com Plotly Express
-            fig_valores1 = px.bar(
-                grupo_dados,
-                x="total_focos",
-                y="date",
-                orientation="h",
-                labels={"total_focos": "Total de Focos", "date": "Data"},
-                title="Quantidade de focos de queimado por data em São Paulo",
-                color_discrete_sequence=["#de171a"],
                 template="plotly_white"
             )
-
-        except Exception as e:
-            st.error(f"Erro ao criar o gráfico de linha: {e}")
-
+            st.plotly_chart(fig)
+    
+    # Gráfico de queimadas
+    with aba2:
+        grupo_dados = df_queimadas_sp.groupby(by=["date"])['focuses'].sum().reset_index(name="total_focos")
+        fig_valores1 = px.bar(
+            grupo_dados,
+            x="total_focos",
+            y="date",
+            orientation="h",
+            labels={"total_focos": "Total de Focos", "date": "Data"},
+            title="Quantidade de focos de queimado por data em São Paulo",
+            color_discrete_sequence=["#F51111"],
+            template="plotly_white"
+        )
         st.plotly_chart(fig_valores1, use_container_width=True)
     
+    # Gráfico de "Queimadas x Sensores"
     with aba3:
         
         if ColunaX == ColunaY:
@@ -269,26 +158,35 @@ def graficos():
         df_queimadas_sp['date'] = pd.to_datetime(df_queimadas_sp['date'], format='%Y/%m')
         df_queimadas_sp['date'] = df_queimadas_sp['date'].dt.to_period('M')
         
+        
         # Verifica se as colunas selecionadas estão presentes nas bases
         if ColunaX in df_selecionado.columns and ColunaY in df_selecionado.columns and 'date' in df_queimadas_sp.columns:
             try:
 
-                df_sensor_meses = df_selecionado.groupby(df_selecionado['date'])
+                #df_sensor_meses = df_selecionado.groupby(df_selecionado['date'])
 
                 # Faz a junção das bases de dados usando 'tempo_registro' no lugar de 'date' para a tabela de sensores
-                df_combinado = df_sensor_meses.merge(df_queimadas_sp[['date', 'focuses']], how='inner', left_on='tempo_registro', right_on='date')
+                #df_combinado = df_sensor_meses.merge(df_queimadas_sp[['date', 'focuses']], how='inner', left_on='tempo_registro', right_on='date')
+
+                df_combinado = df_selecionado.merge(df_queimadas_sp[['date', 'focuses']], how='inner', left_on='tempo_registro', right_on='date')
+
+                df_combinado['tempo_registro'] = df_combinado['tempo_registro'].astype(str)
+                df_combinado['date'] = df_combinado['date'].astype(str)
 
                 # Criação do gráfico relacionando as variáveis selecionadas com os focos de queimadas
-                fig_valores2 = px.scatter(
+                fig_valores2 = px.density_heatmap(
                     df_combinado,
                     x=ColunaX,
                     y=ColunaY,
-                    size="focuses",  # Tamanho das bolhas representa os focos de queimadas
-                    color="focuses",  # Cor representa a quantidade de queimadas
-                    labels={ColunaX: ColunaX.capitalize(), ColunaY: ColunaY.capitalize(), "focuses": "Focos de Queimadas"},
-                    title=f"Relação entre {ColunaX.capitalize()}, {ColunaY.capitalize()} e Focos de Queimadas",
-                    template="plotly_white",
-                    color_continuous_scale=px.colors.sequential.OrRd
+                    z="focuses",  # Intensidade baseada nos focos de queimadas
+                    color_continuous_scale="OrRd",
+                    labels={
+                        ColunaX: ColunaX.capitalize(),
+                        ColunaY: ColunaY.capitalize(),
+                        "focuses": "Focos de Queimadas"
+                    },
+                    title=f"Mapa de Calor: {ColunaX.capitalize()} vs {ColunaY.capitalize()} com Focos de Queimadas",
+                    template="plotly_white"
                 )
 
             except Exception as e:
@@ -304,6 +202,7 @@ def graficos():
             df_toneladas.iloc[::-1].reset_index(drop=True), 
             x='Data', 
             y='Toneladas', 
+            color_discrete_sequence=["#197917"],
             title='Toneladas Por Mês',
             labels={'Data': 'Mês/Ano', 'Toneladas': 'Quantidade (Toneladas)'})
 
@@ -404,6 +303,6 @@ def graficos():
         except Exception as e:
             st.error(f"Ocorreu um erro: {e}")
 
-
+# Rodar as funções
 Home()
 graficos()

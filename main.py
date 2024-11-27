@@ -23,7 +23,7 @@ mybd = SQLAlchemy(app)
 mqtt_dados = {}
 
 def conexao_sensor(cliente, userdata, flags, rc):
-    cliente.subscribe("projeto_integrado/SENAI134/Cienciadedados/GrupoX")
+    cliente.subscribe("projeto_integrado/SENAI134/Cienciadedados/Grupo1")
 
 def msg_sensor(client, userdata, msg):
     global mqtt_dados
@@ -40,7 +40,7 @@ def msg_sensor(client, userdata, msg):
             pressao = mqtt_dados.get('pressure')
             altitude = mqtt_dados.get('altitude')
             umidade = mqtt_dados.get('humidity')
-            co2 = mqtt_dados.get('co2')
+            co2 = mqtt_dados.get('CO2')
             poeira = 0
             tempo_registro = mqtt_dados.get('timestamp')
 
@@ -202,7 +202,7 @@ def criar_registro():
             pressao = body["pressao"],
             altitude = body["altitude"],
             umidade = body["umidade"],
-            co2 = body["co2"],
+            co2 = body["CO2"],
             #poeira = body["poeira"],
             tempo_registro = body["tempo_registro"]
         )
@@ -265,7 +265,7 @@ def criar_dados():
         pressao = dados.get('pressao')
         altitude = dados.get('altitude')
         umidade = dados.get('umidade')
-        co2 = dados.get('co2')
+        co2 = dados.get('CO2')
         timestamp_unix = dados.get('tempo_registro')
 
         try:
